@@ -1,0 +1,76 @@
+@import url('https://fonts.googleapis.com/css2?family=Jua&family=Gowun+Dodum&family=Nanum+Pen+Script&family=Inter:wght@400;500;600;700&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-jua: "Jua", sans-serif;
+  --font-gowun: "Gowun Dodum", sans-serif;
+  --font-pen: "Nanum Pen Script", cursive;
+}
+
+@layer utilities {
+  .bg-dashed {
+    background-image: radial-gradient(circle, #cbd5e1 1.5px, transparent 1.5px);
+    background-size: 16px 16px;
+  }
+}
+
+@keyframes slide-in {
+  from {
+    transform: translateX(100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+.animate-slide-in {
+  animation: slide-in 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes spin-slow {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.animate-spin-slow {
+  animation: spin-slow 12s linear infinite;
+}
+
+/* Custom Scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+/* Print configuration */
+@media print {
+  body {
+    background: white !important;
+    color: black !important;
+  }
+  .no-print {
+    display: none !important;
+  }
+  .print-header {
+    display: block !important;
+    text-align: center;
+    margin-bottom: 2rem;
+  }
+}

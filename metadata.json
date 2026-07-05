@@ -1,0 +1,8 @@
+{
+  "name": "Remix: 2-11 자리배치 프로그램",
+  "description": "2-11반을 위한 반응형 자리배치 프로그램 (짝 모드 및 개인/시험 모드 제공, 자동 자리 섞기 및 배치 커스텀 지원)",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
