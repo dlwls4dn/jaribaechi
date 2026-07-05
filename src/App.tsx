@@ -528,62 +528,66 @@ export default function App() {
 
     classroomAudio.playClick();
 
-    // Helper to convert oklch and oklab to rgb in styled elements
-    const convertModernColorsToRgbInClonedDoc = (clonedDoc: Document) => {
-      const colorRegex = /(oklch|oklab)\([^)]+\)/g;
-      const elements = clonedDoc.getElementsByTagName('*');
+    // Helper to convert oklch and oklab to rgb in a CSS string or style declaration
+    const convertCssStringColors = (cssText: string): string => {
+      if (!cssText || typeof cssText !== 'string' || (!cssText.includes('oklch') && !cssText.includes('oklab'))) return cssText;
       
-      const canvas = clonedDoc.createElement('canvas');
+      const canvas = document.createElement('canvas');
       canvas.width = 1;
       canvas.height = 1;
       const ctx = canvas.getContext('2d');
-      
-      const convertColorStr = (str: string): string => {
-        if (!str || typeof str !== 'string' || (!str.includes('oklch') && !str.includes('oklab'))) return str;
-        return str.replace(colorRegex, (match) => {
-          try {
-            if (!ctx) return match;
-            ctx.clearRect(0, 0, 1, 1);
-            ctx.fillStyle = match;
-            ctx.fillRect(0, 0, 1, 1);
-            const [r, g, b, a] = ctx.getImageData(0, 0, 1, 1).data;
-            return `rgba(${r}, ${g}, ${b}, ${a / 255})`;
-          } catch (e) {
-            return match;
-          }
-        });
-      };
+      if (!ctx) return cssText;
 
-      for (let i = 0; i < elements.length; i++) {
-        const el = elements[i] as HTMLElement;
+      const colorRegex = /(oklch|oklab)\([^)]+\)/g;
+      return cssText.replace(colorRegex, (match) => {
         try {
-          const computed = clonedDoc.defaultView?.getComputedStyle(el) || window.getComputedStyle(el);
-          if (computed) {
-            const props = [
-              'color',
-              'backgroundColor',
-              'borderColor',
-              'borderTopColor',
-              'borderRightColor',
-              'borderBottomColor',
-              'borderLeftColor',
-              'boxShadow',
-              'outlineColor',
-            ];
-            props.forEach(prop => {
-              const val = computed[prop as any];
-              if (val && (val.includes('oklch') || val.includes('oklab'))) {
-                el.style[prop as any] = convertColorStr(val);
-              }
-            });
-          }
+          ctx.clearRect(0, 0, 1, 1);
+          ctx.fillStyle = match;
+          ctx.fillRect(0, 0, 1, 1);
+          const [r, g, b, a] = ctx.getImageData(0, 0, 1, 1).data;
+          return `rgba(${r}, ${g}, ${b}, ${a / 255})`;
         } catch (e) {
-          // ignore
+          return match;
         }
-      }
+      });
     };
 
     try {
+      // Fetch and pre-convert all styles on the active page to bypass html2canvas's unsupported 'oklch/oklab' color parser bug
+      const convertedStylesheets: string[] = [];
+      
+      // 1. Process all existing <style> tags
+      const styleTags = document.querySelectorAll('style');
+      styleTags.forEach(style => {
+        try {
+          const converted = convertCssStringColors(style.textContent || '');
+          convertedStylesheets.push(converted);
+        } catch (e) {
+          console.error('Style tag convert error:', e);
+        }
+      });
+
+      // 2. Process all relative/same-origin <link rel="stylesheet"> tags
+      const linkTags = document.querySelectorAll('link[rel="stylesheet"]');
+      for (let i = 0; i < linkTags.length; i++) {
+        const link = linkTags[i] as HTMLLinkElement;
+        if (link.href) {
+          try {
+            const url = new URL(link.href, window.location.href);
+            if (url.origin === window.location.origin) {
+              const res = await fetch(link.href);
+              if (res.ok) {
+                const cssText = await res.text();
+                const converted = convertCssStringColors(cssText);
+                convertedStylesheets.push(converted);
+              }
+            }
+          } catch (e) {
+            console.error('Link tag fetch/convert error:', e);
+          }
+        }
+      }
+
       // Use html2canvas from the window global namespace loaded via CDN
       const html2canvasFn = (window as any).html2canvas;
       if (!html2canvasFn) {
@@ -592,11 +596,21 @@ export default function App() {
       
       const canvas = await html2canvasFn(captureElement, {
         useCORS: true,
+        allowTaint: false,
         backgroundColor: '#fdf8f2', // matches default chalkboard theme warm sand background
         scale: 2, // high resolution 2x
         logging: false,
         onclone: (clonedDoc: any) => {
-          convertModernColorsToRgbInClonedDoc(clonedDoc);
+          // Remove all existing stylesheets in the cloned document so html2canvas doesn't parse raw 'oklch' or 'oklab' color functions
+          const originalStyles = clonedDoc.querySelectorAll('style, link[rel="stylesheet"]');
+          originalStyles.forEach((el: any) => el.remove());
+
+          // Append our safe pre-converted style definitions where all oklch/oklab are now rgb/rgba
+          convertedStylesheets.forEach(cssText => {
+            const styleEl = clonedDoc.createElement('style');
+            styleEl.textContent = cssText;
+            clonedDoc.head.appendChild(styleEl);
+          });
         },
       });
 
